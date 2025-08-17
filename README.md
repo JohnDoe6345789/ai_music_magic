@@ -55,10 +55,8 @@ python -m pip install numpy soundfile torch cymem==2.0.11 preshed==3.0.10 murmur
 Once everything is installed, you can run your scripts inside the activated environment:
 
 ```powershell
-python generate_music.py
+python lilscript.py
 ```
-
-Replace `generate_music.py` with your own script name.
 
 ## Notes
 
