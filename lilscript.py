@@ -45,18 +45,18 @@ for i in range(num_chunks):
     # Generate chunk (returns Tensor)
     audio_tensor = model.generate(TEXT_PROMPT)
 
-    # Convert Tensor -> NumPy int16
-    audio_int16 = (audio_tensor.cpu().numpy() * 32767).astype(np.int16)
+    # Convert Tensor -> NumPy int16 and remove extra dimensions
+    audio_int16 = (audio_tensor.cpu().numpy().squeeze() * 32767).astype(np.int16)
 
     # Save intermediate chunk
     chunk_file = os.path.join(OUTPUT_DIR, f"chunk_{i+1}.wav")
     write_wav(chunk_file, rate=sampling_rate, data=audio_int16)
 
-    # Append to final WAV properly
+    # Append to final WAV safely
     if i == 0:
         write_wav(final_file, rate=sampling_rate, data=audio_int16)
     else:
-        rate, existing = read_wav(final_file)  # read existing WAV correctly
+        rate, existing = read_wav(final_file)  # read existing WAV
         combined = np.concatenate([existing, audio_int16], axis=0)
         write_wav(final_file, rate=rate, data=combined)
 
