@@ -2,7 +2,7 @@ import os
 import torch
 import numpy as np
 from time import time
-from scipy.io.wavfile import write as write_wav
+from scipy.io.wavfile import write as write_wav, read as read_wav
 from audiocraft.models import MusicGen
 
 # -------------------------------
@@ -11,7 +11,7 @@ from audiocraft.models import MusicGen
 OUTPUT_DIR = "generated_chunks"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-CHUNK_DURATION = 1   # seconds per chunk (quick CPU feedback)
+CHUNK_DURATION = 1   # seconds per chunk
 TOTAL_DURATION = 40  # total song length in seconds
 TEXT_PROMPT = """
 Epic female-fronted power ballad, soaring chorus, emotional verses,
@@ -52,17 +52,16 @@ for i in range(num_chunks):
     chunk_file = os.path.join(OUTPUT_DIR, f"chunk_{i+1}.wav")
     write_wav(chunk_file, rate=sampling_rate, data=audio_int16)
 
-    # Append to final WAV
+    # Append to final WAV properly
     if i == 0:
         write_wav(final_file, rate=sampling_rate, data=audio_int16)
     else:
-        existing = np.fromfile(final_file, dtype=np.int16)
-        combined = np.concatenate([existing, audio_int16])
-        write_wav(final_file, rate=sampling_rate, data=combined)
+        rate, existing = read_wav(final_file)  # read existing WAV correctly
+        combined = np.concatenate([existing, audio_int16], axis=0)
+        write_wav(final_file, rate=rate, data=combined)
 
     end_time = time()
     print(f"[INFO] Chunk {i+1} done in {end_time - start_time:.1f}s, saved to {chunk_file}")
 
 print(f"[DONE] Full power ballad saved to {final_file}")
 print("[INFO] All chunks are also saved in the 'generated_chunks' folder.")
-
