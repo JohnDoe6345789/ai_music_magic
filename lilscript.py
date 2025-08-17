@@ -25,7 +25,7 @@ print(f"[INFO] Loading MusicGen-small model on CPU...")
 # -------------------------------
 # Initialize model
 # -------------------------------
-model = MusicGen.get_pretrained('small', device=device)
+model = MusicGen.get_pretrained('facebook/musicgen-small', device=device)
 model.set_generation_params(duration=CHUNK_DURATION)
 sampling_rate = model.sample_rate
 print(f"[INFO] Model loaded on CPU, sampling rate: {sampling_rate}")
@@ -65,3 +65,4 @@ for i in range(num_chunks):
 
 print(f"[DONE] Full power ballad saved to {final_file}")
 print("[INFO] All chunks are also saved in the 'generated_chunks' folder.")
+
