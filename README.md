@@ -1,69 +1,146 @@
-# AI Music Project
+# AI Music Environment Setup (Windows)
 
-This project uses [Audiocraft](https://github.com/facebookresearch/audiocraft) to generate music with AI. It is configured to run on Windows using Python 3.11 inside a virtual environment.
+This guide helps you set up a Windows environment for `audiocraft`, using `pyenv-win` to manage Python versions and virtual environments.
 
-## Prerequisites
+---
 
-- Windows 10/11
-- Python 3.11
-- Git
-- `pip` and `venv` modules (Python standard)
+## 1. Install pyenv-win
 
-## Setup Instructions
+1. Open PowerShell (normal user, not admin).
+2. Clone pyenv-win:
 
-### 1. Clone the repository
 ```powershell
-git clone <your-repo-url>
-cd <your-repo-folder>
+git clone https://github.com/pyenv-win/pyenv-win.git $HOME\.pyenv
 ```
 
-### 2. Create a virtual environment
+3. Create your PowerShell profile if it doesn't exist:
+
+```powershell
+if (!(Test-Path -Path $PROFILE)) {
+    New-Item -ItemType File -Path $PROFILE -Force
+}
+```
+
+4. Open the profile in Notepad:
+
+```powershell
+notepad $PROFILE
+```
+
+5. Add these lines to the end of the file:
+
+```powershell
+# Pyenv-win setup
+$env:PYENV="$HOME\.pyenv\pyenv-win"
+$env:PATH="$env:PYENV\bin;$env:PYENV\shims;$env:PATH"
+```
+
+6. Save and close Notepad.
+7. Apply changes immediately:
+
+```powershell
+. $PROFILE
+```
+
+8. Verify pyenv installation:
+
+```powershell
+pyenv --version
+```
+
+---
+
+## 2. Install a Specific Python Version
+
+1. List available Python versions:
+
+```powershell
+pyenv install --list
+```
+
+2. Install a version (example: 3.11.7):
+
+```powershell
+pyenv install 3.11.7
+```
+
+3. Set it for the current session:
+
+```powershell
+pyenv shell 3.11.7
+```
+
+4. Verify Python version:
+
+```powershell
+python --version
+```
+
+---
+
+## 3. Create a Virtual Environment
+
+1. Navigate to your project folder:
+
+```powershell
+cd C:\Users\richa\dev
+```
+
+2. Create a virtual environment:
+
 ```powershell
 python -m venv ai_music_env
 ```
 
-### 3. Activate the virtual environment
+3. Activate it:
+
 ```powershell
 .\ai_music_env\Scripts\Activate.ps1
 ```
 
-### 4. Upgrade pip, setuptools, and wheel
-```powershell
-python -m pip install --upgrade pip setuptools wheel
-```
-
-### 5. Install Audiocraft
-You have two options:
-
-**Option 1: Stable version (recommended)**
-```powershell
-python -m pip install audiocraft==1.3.0
-```
-
-**Option 2: Alpha version (if you specifically need v1.4.0a2)**
-```powershell
-python -m pip install git+https://github.com/facebookresearch/audiocraft.git@v1.4.0a2
-```
-
-### 6. Install additional dependencies (if needed)
-```powershell
-python -m pip install numpy soundfile torch cymem==2.0.11 preshed==3.0.10 murmurhash==1.0.13 thinc==8.2.5 blis==0.7.11
-```
-
-## Usage
-
-Once everything is installed, you can run your scripts inside the activated environment:
+4. Confirm Python version inside the venv:
 
 ```powershell
-python lilscript.py
+python --version
 ```
 
-## Notes
+---
 
-- Ensure you are using Python 3.11 inside the virtual environment.
-- If you encounter build errors, make sure `pip`, `setuptools`, and `wheel` are up to date.
-- On Windows, installing some pre-release packages may require a working C++ build environment.
+## 4. Install Dependencies
 
-## License
+Install compatible versions of the packages:
 
-Include your project license here.
+```powershell
+pip install cymem==2.0.11 preshed==3.0.10 murmurhash==1.0.13 thinc==8.3.6 blis==0.7.11
+```
+
+> Note: `thinc 8.2.5` may not exist for Windows/Python 3.11+. Use the latest compatible `8.3.x`.
+
+Then install `audiocraft` (latest available version):
+
+```powershell
+pip install audiocraft==1.3.0
+```
+
+---
+
+## 5. Verify Installation
+
+```powershell
+python -c "import audiocraft; print(audiocraft.__version__)"
+```
+
+You should see the installed version printed.
+
+---
+
+## 6. Tips
+
+- Always activate the virtual environment before running your project.
+- Use `pyenv shell <version>` to switch Python versions.
+- Update `pip` if you encounter installation issues:
+
+```powershell
+python -m pip install --upgrade pip
+```
+
