@@ -1,6 +1,6 @@
 # AI Music Environment Setup (Windows)
 
-This guide helps you set up a Windows environment for `audiocraft`, using `pyenv-win` to manage Python versions and virtual environments.
+This guide helps you set up a Windows environment for `audiocraft`, using `pyenv-win` to manage Python versions and virtual environments, and run your main program `lilscript.py`.
 
 ---
 
@@ -134,7 +134,19 @@ You should see the installed version printed.
 
 ---
 
-## 6. Tips
+## 6. Run Your Main Program
+
+To run your main script `lilscript.py`:
+
+```powershell
+python lilscript.py
+```
+
+Make sure you are in the project directory and the virtual environment is activated.
+
+---
+
+## 7. Tips
 
 - Always activate the virtual environment before running your project.
 - Use `pyenv shell <version>` to switch Python versions.
