@@ -11,7 +11,7 @@ from audiocraft.models import MusicGen
 OUTPUT_DIR = "generated_chunks"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-CHUNK_DURATION = 1   # seconds per chunk (CPU-friendly)
+CHUNK_DURATION = 1   # seconds per chunk (quick CPU feedback)
 TOTAL_DURATION = 40  # total song length in seconds
 TEXT_PROMPT = """
 Epic female-fronted power ballad, soaring chorus, emotional verses,
@@ -25,7 +25,7 @@ print(f"[INFO] Loading MusicGen-small model on CPU...")
 # -------------------------------
 # Initialize model
 # -------------------------------
-model = MusicGen.get_pretrained('facebook/musicgen-small', device=device)
+model = MusicGen.get_pretrained('small', device=device)
 model.set_generation_params(duration=CHUNK_DURATION)
 sampling_rate = model.sample_rate
 print(f"[INFO] Model loaded on CPU, sampling rate: {sampling_rate}")
@@ -42,11 +42,11 @@ for i in range(num_chunks):
     start_time = time()
     print(f"[INFO] Generating chunk {i+1}/{num_chunks}...")
 
-    # Generate chunk (CPU may take ~60s per 5s chunk)
-    audio_array = model.generate(TEXT_PROMPT)
+    # Generate chunk (returns Tensor)
+    audio_tensor = model.generate(TEXT_PROMPT)
 
-    # Convert float32 [-1,1] to int16 immediately to save RAM
-    audio_int16 = (audio_array * 32767).astype(np.int16)
+    # Convert Tensor -> NumPy int16
+    audio_int16 = (audio_tensor.cpu().numpy() * 32767).astype(np.int16)
 
     # Save intermediate chunk
     chunk_file = os.path.join(OUTPUT_DIR, f"chunk_{i+1}.wav")
@@ -65,4 +65,3 @@ for i in range(num_chunks):
 
 print(f"[DONE] Full power ballad saved to {final_file}")
 print("[INFO] All chunks are also saved in the 'generated_chunks' folder.")
-
