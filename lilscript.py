@@ -1,8 +1,8 @@
 import os
 import torch
 import numpy as np
-from time import time
-from scipy.io.wavfile import write as write_wav, read as read_wav
+from scipy.io.wavfile import write as write_wav
+from pydub import AudioSegment
 from audiocraft.models import MusicGen
 
 # -------------------------------
@@ -18,50 +18,57 @@ Epic female-fronted power ballad, soaring chorus, emotional verses,
 soft intros building to thunderous climax, speaker-shattering intensity
 """
 
-# Force CPU usage
-device = "cpu"
-print(f"[INFO] Loading MusicGen-small model on CPU...")
+FINAL_WAV = "power_ballad_fixed.wav"
+FINAL_MP3 = "power_ballad_fixed.mp3"
 
 # -------------------------------
 # Initialize model
 # -------------------------------
+device = "cpu"
+print("[INFO] Loading MusicGen-small on CPU...")
 model = MusicGen.get_pretrained('facebook/musicgen-small', device=device)
 model.set_generation_params(duration=CHUNK_DURATION)
 sampling_rate = model.sample_rate
-print(f"[INFO] Model loaded on CPU, sampling rate: {sampling_rate}")
+print(f"[INFO] Model loaded. Sampling rate: {sampling_rate} Hz")
 
 # -------------------------------
 # Generate in chunks
 # -------------------------------
 num_chunks = TOTAL_DURATION // CHUNK_DURATION
-final_file = "power_ballad_full.wav"
-
-print(f"[INFO] Starting generation: {TOTAL_DURATION}s total, {CHUNK_DURATION}s per chunk ({num_chunks} chunks)")
+all_chunks = []
 
 for i in range(num_chunks):
-    start_time = time()
     print(f"[INFO] Generating chunk {i+1}/{num_chunks}...")
-
-    # Generate chunk (returns Tensor)
+    
+    # Generate chunk
     audio_tensor = model.generate(TEXT_PROMPT)
-
-    # Convert Tensor -> NumPy int16 and remove extra dimensions
+    
+    # Convert Tensor -> NumPy int16
     audio_int16 = (audio_tensor.cpu().numpy().squeeze() * 32767).astype(np.int16)
-
-    # Save intermediate chunk
+    
+    # Force mono/stereo shape
+    if audio_int16.ndim == 1:
+        audio_int16 = np.expand_dims(audio_int16, axis=1)
+    
+    # Save individual chunk
     chunk_file = os.path.join(OUTPUT_DIR, f"chunk_{i+1}.wav")
     write_wav(chunk_file, rate=sampling_rate, data=audio_int16)
+    
+    all_chunks.append(audio_int16)
 
-    # Append to final WAV safely
-    if i == 0:
-        write_wav(final_file, rate=sampling_rate, data=audio_int16)
-    else:
-        rate, existing = read_wav(final_file)  # read existing WAV
-        combined = np.concatenate([existing, audio_int16], axis=0)
-        write_wav(final_file, rate=rate, data=combined)
+# Concatenate all chunks
+full_audio = np.concatenate(all_chunks, axis=0)
 
-    end_time = time()
-    print(f"[INFO] Chunk {i+1} done in {end_time - start_time:.1f}s, saved to {chunk_file}")
+# Write final fixed WAV
+write_wav(FINAL_WAV, rate=sampling_rate, data=full_audio)
+print(f"[DONE] Full song saved: {FINAL_WAV}")
 
-print(f"[DONE] Full power ballad saved to {final_file}")
-print("[INFO] All chunks are also saved in the 'generated_chunks' folder.")
+# -------------------------------
+# Optional: Convert to MP3
+# -------------------------------
+try:
+    audio = AudioSegment.from_wav(FINAL_WAV)
+    audio.export(FINAL_MP3, format="mp3", bitrate="192k")
+    print(f"[DONE] MP3 exported: {FINAL_MP3}")
+except Exception as e:
+    print("[WARN] MP3 conversion failed:", e)
