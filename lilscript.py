@@ -1,74 +1,73 @@
-import os
 import torch
 import numpy as np
-from scipy.io.wavfile import write as write_wav
-from pydub import AudioSegment
-from audiocraft.models import MusicGen
+import scipy.io.wavfile as wav
+import subprocess
+import os
 
-# -------------------------------
-# Settings
-# -------------------------------
-OUTPUT_DIR = "generated_chunks"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+from transformers import AutoProcessor, MusicgenForConditionalGeneration
 
-CHUNK_DURATION = 1   # seconds per chunk
-TOTAL_DURATION = 40  # total song length in seconds
-TEXT_PROMPT = """
-Epic female-fronted power ballad, soaring chorus, emotional verses,
-soft intros building to thunderous climax, speaker-shattering intensity
-"""
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
-FINAL_WAV = "power_ballad_fixed.wav"
-FINAL_MP3 = "power_ballad_fixed.mp3"
+print("Loading model...")
+processor = AutoProcessor.from_pretrained("facebook/musicgen-small")
+model = MusicgenForConditionalGeneration.from_pretrained("facebook/musicgen-small").to(device)
 
-# -------------------------------
-# Initialize model
-# -------------------------------
-device = "cpu"
-print("[INFO] Loading MusicGen-small on CPU...")
-model = MusicGen.get_pretrained('facebook/musicgen-small', device=device)
-model.set_generation_params(duration=CHUNK_DURATION)
-sampling_rate = model.sample_rate
-print(f"[INFO] Model loaded. Sampling rate: {sampling_rate} Hz")
+prompt = "epic power ballad with soaring vocals and heavy drums"
+wav_file = "power_ballad_fixed.wav"
+repaired_file = "power_ballad_repaired.wav"
+mp3_file = "power_ballad.mp3"
 
-# -------------------------------
-# Generate in chunks
-# -------------------------------
-num_chunks = TOTAL_DURATION // CHUNK_DURATION
-all_chunks = []
+print("Generating audio...")
+inputs = processor(text=[prompt], padding=True, return_tensors="pt").to(device)
+audio_values = model.generate(**inputs, max_new_tokens=32000)
 
-for i in range(num_chunks):
-    print(f"[INFO] Generating chunk {i+1}/{num_chunks}...")
-    
-    # Generate chunk
-    audio_tensor = model.generate(TEXT_PROMPT)
-    
-    # Convert Tensor -> NumPy int16
-    audio_int16 = (audio_tensor.cpu().numpy().squeeze() * 32767).astype(np.int16)
-    
-    # Force mono/stereo shape
-    if audio_int16.ndim == 1:
-        audio_int16 = np.expand_dims(audio_int16, axis=1)
-    
-    # Save individual chunk
-    chunk_file = os.path.join(OUTPUT_DIR, f"chunk_{i+1}.wav")
-    write_wav(chunk_file, rate=sampling_rate, data=audio_int16)
-    
-    all_chunks.append(audio_int16)
+# Convert tensor → numpy int16
+audio_np = audio_values[0, 0].cpu().numpy()
+audio_int16 = (audio_np * 32767).astype(np.int16)
 
-# Concatenate all chunks
-full_audio = np.concatenate(all_chunks, axis=0)
+# Ensure 2D shape (mono)
+if audio_int16.ndim == 1:
+    audio_int16 = np.expand_dims(audio_int16, axis=1)
 
-# Write final fixed WAV
-write_wav(FINAL_WAV, rate=sampling_rate, data=full_audio)
-print(f"[DONE] Full song saved: {FINAL_WAV}")
+# Save WAV
+wav.write(wav_file, 32000, audio_int16)
+print(f"Raw WAV saved: {wav_file}")
 
-# -------------------------------
-# Optional: Convert to MP3
-# -------------------------------
+# --- Repair header ---
+def repair_wav_header(in_file, out_file):
+    with open(in_file, "rb") as f:
+        data = bytearray(f.read())
+
+    # Force mono (1 channel)
+    data[22] = 1
+    data[23] = 0
+
+    # Recalc byte rate + block align
+    sample_rate = int.from_bytes(data[24:28], "little")
+    bits_per_sample = int.from_bytes(data[34:36], "little")
+    num_channels = 1
+
+    byte_rate = sample_rate * num_channels * bits_per_sample // 8
+    block_align = num_channels * bits_per_sample // 8
+
+    data[28:32] = byte_rate.to_bytes(4, "little")
+    data[32:34] = block_align.to_bytes(2, "little")
+
+    with open(out_file, "wb") as f:
+        f.write(data)
+
+    print(f"Header repaired and saved: {out_file}")
+
+repair_wav_header(wav_file, repaired_file)
+
+# --- Convert to MP3 using ffmpeg ---
 try:
-    audio = AudioSegment.from_wav(FINAL_WAV)
-    audio.export(FINAL_MP3, format="mp3", bitrate="192k")
-    print(f"[DONE] MP3 exported: {FINAL_MP3}")
+    subprocess.run(
+        ["ffmpeg", "-y", "-i", repaired_file, "-codec:a", "libmp3lame", "-b:a", "192k", mp3_file],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+    print(f"MP3 saved: {mp3_file}")
 except Exception as e:
-    print("[WARN] MP3 conversion failed:", e)
+    print(f"FFmpeg conversion failed: {e}")
